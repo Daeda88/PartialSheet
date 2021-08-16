@@ -10,17 +10,18 @@ import SwiftUI
 import Combine
 
 /// This is the modifier for the Partial Sheet
+@available(iOSApplicationExtension, unavailable)
 struct PartialSheet: ViewModifier {
     
     // MARK: - Public Properties
-
+    
     /// The Partial Sheet Style configuration
     var style: PartialSheetStyle
     
     // MARK: - Private Properties
-
+    
     @EnvironmentObject private var manager: PartialSheetManager
-
+    
     /// The rect containing the presenter
     @State private var presenterContentRect: CGRect = .zero
     
@@ -32,7 +33,7 @@ struct PartialSheet: ViewModifier {
     
     /// The offset for the drag gesture
     @State private var dragOffset: CGFloat = 0
-
+    
     /// The point for the top anchor
     private var topAnchor: CGFloat {
         let topSafeArea = (UIApplication.shared.windows.first?.safeAreaInsets.top ?? 0)
@@ -44,7 +45,7 @@ struct PartialSheet: ViewModifier {
             bottomSafeArea -
             sheetContentRect.height -
             handlerSectionHeight
-          
+        
         guard calculatedTop < style.minTopDistance else {
             return calculatedTop
         }
@@ -60,8 +61,8 @@ struct PartialSheet: ViewModifier {
     /// The height of the handler bar section
     private var handlerSectionHeight: CGFloat {
         switch style.handlerBarStyle {
-            case .solid: return 30
-            case .none: return 0
+        case .solid: return 30
+        case .none: return 0
         }
     }
     
@@ -81,7 +82,7 @@ struct PartialSheet: ViewModifier {
             return self.bottomAnchor - self.dragOffset
         }
     }
-
+    
     /// Background of sheet
     private var background: AnyView {
         switch self.style.background {
@@ -108,7 +109,7 @@ struct PartialSheet: ViewModifier {
                                     value: [PreferenceData(bounds: proxy.frame(in: .global))]
                                 )
                             }
-                    )
+                        )
                         .onAppear{
                             let notifier = NotificationCenter.default
                             let willShow = UIResponder.keyboardWillShowNotification
@@ -121,15 +122,15 @@ struct PartialSheet: ViewModifier {
                                                  object: nil,
                                                  queue: .main,
                                                  using: self.keyboardHide)
-                    }
-                    .onDisappear {
-                        let notifier = NotificationCenter.default
-                        notifier.removeObserver(self)
-                    }
-                    .onPreferenceChange(PresenterPreferenceKey.self, perform: { (prefData) in
-                        self.presenterContentRect = prefData.first?.bounds ?? .zero
-                    })
-            }
+                        }
+                        .onDisappear {
+                            let notifier = NotificationCenter.default
+                            notifier.removeObserver(self)
+                        }
+                        .onPreferenceChange(PresenterPreferenceKey.self, perform: { (prefData) in
+                            self.presenterContentRect = prefData.first?.bounds ?? .zero
+                        })
+                }
                 // if the device type is not an iPhone,
                 // display the sheet content as a normal sheet
                 .iPadOrMac {
@@ -139,7 +140,7 @@ struct PartialSheet: ViewModifier {
                         }, content: {
                             self.iPadAndMacSheet()
                         })
-            }
+                }
             // if the device type is an iPhone,
             // display the sheet content as a draggableSheet
             if deviceType == .iphone {
@@ -151,40 +152,43 @@ struct PartialSheet: ViewModifier {
 }
 
 //MARK: - Platfomr Specific Sheet Builders
+@available(iOSApplicationExtension, unavailable)
 extension PartialSheet {
-
+    
     //MARK: - Mac and iPad Sheet Builder
-
+    
     /// This is the builder for the sheet content for iPad and Mac devices only
     private func iPadAndMacSheet() -> some View {
         VStack {
-            HStack {
-                Spacer()
-                Button(action: {
-                    self.manager.isPresented = false
-                }, label: {
-                    Image(systemName: "xmark")
-                        .foregroundColor(style.iPadCloseButtonColor)
-                        .padding(.horizontal)
-                        .padding(.top)
-                })
+            if (self.style.userDismissable) {
+                HStack {
+                    Spacer()
+                    Button(action: {
+                        self.manager.isPresented = false
+                    }, label: {
+                        Image(systemName: "xmark")
+                            .foregroundColor(style.iPadCloseButtonColor)
+                            .padding(.horizontal)
+                            .padding(.top)
+                    })
+                }
             }
             self.manager.content
             Spacer()
         }.background(self.background)
     }
-
+    
     //MARK: - iPhone Sheet Builder
-
+    
     /// This is the builder for the sheet content for iPhone devices only
     private func iPhoneSheet()-> some View {
         // Build the drag gesture
         let drag = dragGesture()
         
         return ZStack {
-
+            
             //MARK: - iPhone Cover View
-
+            
             if manager.isPresented {
                 Group {
                     if style.enableCover {
@@ -198,9 +202,11 @@ extension PartialSheet {
                 .edgesIgnoringSafeArea(.vertical)
                 .onTapGesture {
                     withAnimation(manager.defaultAnimation) {
-                        self.manager.isPresented = false
-                        self.dismissKeyboard()
-                        self.manager.onDismiss?()
+                        if (self.style.userDismissable) {
+                            self.manager.isPresented = false
+                            self.dismissKeyboard()
+                            self.manager.onDismiss?()
+                        }
                     }
                 }
             }
@@ -227,7 +233,7 @@ extension PartialSheet {
                                 GeometryReader { proxy in
                                     Color.clear.preference(key: SheetPreferenceKey.self, value: [PreferenceData(bounds: proxy.frame(in: .global))])
                                 }
-                        )
+                            )
                     }
                     Spacer()
                 }
@@ -248,11 +254,12 @@ extension PartialSheet {
 }
 
 // MARK: - Drag Gesture & Handler
+@available(iOSApplicationExtension, unavailable)
 extension PartialSheet {
-
+    
     /// Create a new **DragGesture** with *updating* and *onEndend* func
     private func dragGesture() -> _EndedGesture<_ChangedGesture<DragGesture>> {
-        DragGesture(minimumDistance: 0, coordinateSpace: .local)
+        DragGesture(minimumDistance: 0.1, coordinateSpace: .local)
             .onChanged(onDragChanged)
             .onEnded(onDragEnded)
     }
@@ -285,8 +292,10 @@ extension PartialSheet {
             DispatchQueue.main.async {
                 withAnimation(manager.defaultAnimation) {
                     dragOffset = 0
-                    self.manager.isPresented = false
-                    self.manager.onDismiss?()
+                    if (self.style.userDismissable) {
+                        self.manager.isPresented = false
+                        self.manager.onDismiss?()
+                    }
                 }
             }
         } else if verticalDirection < 0 {
@@ -309,9 +318,11 @@ extension PartialSheet {
             
             withAnimation(manager.defaultAnimation) {
                 dragOffset = 0
-                self.manager.isPresented = (closestPosition == topAnchor)
-                if !manager.isPresented {
-                    manager.onDismiss?()
+                if (self.style.userDismissable) {
+                    self.manager.isPresented = (closestPosition == topAnchor)
+                    if !manager.isPresented {
+                        manager.onDismiss?()
+                    }
                 }
             }
         }
@@ -319,8 +330,9 @@ extension PartialSheet {
 }
 
 // MARK: - Keyboard Handlers Methods
+@available(iOSApplicationExtension, unavailable)
 extension PartialSheet {
-
+    
     /// Add the keyboard offset
     private func keyboardShow(notification: Notification) {
         let endFrame = UIResponder.keyboardFrameEndUserInfoKey
@@ -332,7 +344,7 @@ extension PartialSheet {
             }
         }
     }
-
+    
     /// Remove the keyboard offset
     private func keyboardHide(notification: Notification) {
         DispatchQueue.main.async {
@@ -352,8 +364,9 @@ extension PartialSheet {
 }
 
 // MARK: - PreferenceKeys Handlers
+@available(iOSApplicationExtension, unavailable) 
 extension PartialSheet {
-
+    
     /// Preference Key for the Sheet Presener
     struct PresenterPreferenceKey: PreferenceKey {
         static func reduce(value: inout [PartialSheet.PreferenceData], nextValue: () -> [PartialSheet.PreferenceData]) {
@@ -361,7 +374,7 @@ extension PartialSheet {
         }
         static var defaultValue: [PreferenceData] = []
     }
-
+    
     /// Preference Key for the Sheet Content
     struct SheetPreferenceKey: PreferenceKey {
         static func reduce(value: inout [PartialSheet.PreferenceData], nextValue: () -> [PartialSheet.PreferenceData]) {
@@ -369,12 +382,12 @@ extension PartialSheet {
         }
         static var defaultValue: [PreferenceData] = []
     }
-
+    
     /// Data Stored in the Preferences
     struct PreferenceData: Equatable {
         let bounds: CGRect
     }
-
+    
 }
 
 struct PartialSheetAddView<Base: View, InnerContent: View>: View {
@@ -385,12 +398,17 @@ struct PartialSheetAddView<Base: View, InnerContent: View>: View {
     let base: Base
     
     @State var model = Model()
-
+    
     var body: some View {
-        if model.update(value: isPresented) {
-            DispatchQueue.main.async(execute: updateContent)
+        if #available(iOS 14.0, *) {
+            return AnyView(base
+                            .onChange(of: isPresented, perform: {_ in updateContent() }))
+        } else {
+            if model.update(value: isPresented) {
+                DispatchQueue.main.async(execute: updateContent)
+            }
+            return AnyView(base)
         }
-        return base
     }
     
     func updateContent() {
